@@ -62,6 +62,8 @@ import org.apache.xmlbeans.impl.common.QNameHelper;
 import org.apache.xmlbeans.impl.common.XmlLocale;
 import org.apache.xmlbeans.impl.common.ResolverUtil;
 import org.apache.xmlbeans.impl.common.SystemCache;
+import org.apache.xmlbeans.impl.common.XBLogger;
+import org.apache.xmlbeans.impl.common.XBLogFactory;
 
 import org.apache.xmlbeans.impl.store.Saaj.SaajCallback;
 
@@ -105,8 +107,10 @@ import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Element;
 
 public final class Locale
-    implements DOMImplementation, SaajCallback, XmlLocale
+        implements DOMImplementation, SaajCallback, XmlLocale
 {
+    private static final XBLogger logger = XBLogFactory.getLogger(Locale.class);
+
     static final int ROOT = Cur.ROOT;
     static final int ELEM = Cur.ELEM;
     static final int ATTR = Cur.ATTR;
@@ -129,9 +133,9 @@ public final class Locale
     static final QName _xsiType = new QName(_xsi, "type", "xsi");
     static final QName _xsiLoc = new QName(_xsi, "schemaLocation", "xsi");
     static final QName _xsiNoLoc = new QName(_xsi, "noNamespaceSchemaLocation",
-        "xsi");
+            "xsi");
     static final QName _openuriFragment = new QName(_openFragUri, "fragment",
-        "frag");
+            "frag");
     static final QName _xmlFragment = new QName("xml-fragment");
 
     private Locale(SchemaTypeLoader stl, XmlOptions options)
@@ -146,7 +150,7 @@ public final class Locale
         //
         // Also - have a thread local setting for thread safety?  .. Perhaps something
         // in the type loader which defines whether ot not sync is on????
-        
+
         _noSync = options.hasOption(XmlOptions.UNSYNCHRONIZED);
 
         _tempFrames = new Cur[_numTempFramesLeft = 8];
@@ -154,10 +158,10 @@ public final class Locale
         // BUGBUG - this cannot be thread local ....
         // BUGBUG - this cannot be thread local ....
         // BUGBUG - this cannot be thread local .... uhh what, again?
-        // 
+        //
         // Lazy create this (loading up a locale should use the thread locale one)
         // same goes for the qname factory .. use thread local for hte most part when loading
-        
+
         _qnameFactory = new DefaultQNameFactory(); //new LocalDocumentQNameFactory();
 
         _locations = new Locations(this);
@@ -165,18 +169,18 @@ public final class Locale
         _schemaTypeLoader = stl;
 
         _validateOnSet = options.hasOption(XmlOptions.VALIDATE_ON_SET);
-        
+
         //
         // Check for Saaj implementation request
         //
-        
+
         Object saajObj = options.get(Saaj.SAAJ_IMPL);
 
         if (saajObj != null)
         {
             if (!(saajObj instanceof Saaj))
                 throw new IllegalStateException(
-                    "Saaj impl not correct type: " + saajObj);
+                        "Saaj impl not correct type: " + saajObj);
 
             _saaj = (Saaj) saajObj;
 
@@ -216,20 +220,20 @@ public final class Locale
                 l = (Locale) ((XmlTokenSource) source).monitor();
             else
                 throw new IllegalArgumentException(
-                    "Source locale not understood: " + source);
+                        "Source locale not understood: " + source);
 
             if (l._schemaTypeLoader != stl)
                 throw new IllegalArgumentException(
-                    "Source locale does not support same schema type loader");
+                        "Source locale does not support same schema type loader");
 
             if (l._saaj != null && l._saaj != options.get(Saaj.SAAJ_IMPL))
                 throw new IllegalArgumentException(
-                    "Source locale does not support same saaj");
+                        "Source locale does not support same saaj");
 
             if (l._validateOnSet &&
-                !options.hasOption(XmlOptions.VALIDATE_ON_SET))
+                    !options.hasOption(XmlOptions.VALIDATE_ON_SET))
                 throw new IllegalArgumentException(
-                    "Source locale does not support same validate on set");
+                        "Source locale does not support same validate on set");
 
             // TODO - other things to check?
         }
@@ -242,11 +246,11 @@ public final class Locale
     //
     //
     //
-    
+
     static void associateSourceName(Cur c, XmlOptions options)
     {
         String sourceName = (String) XmlOptions.safeGet(options,
-            XmlOptions.DOCUMENT_SOURCE_NAME);
+                XmlOptions.DOCUMENT_SOURCE_NAME);
 
         if (sourceName != null)
             getDocProps(c, true).setSourceName(sourceName);
@@ -255,10 +259,10 @@ public final class Locale
     //
     //
     //
-    
+
     static void autoTypeDocument(Cur c, SchemaType requestedType,
-        XmlOptions options)
-        throws XmlException
+                                 XmlOptions options)
+            throws XmlException
     {
         assert c.isRoot();
 
@@ -267,7 +271,7 @@ public final class Locale
         options = XmlOptions.maskNull(options);
 
         SchemaType optionType = (SchemaType) options.get(
-            XmlOptions.DOCUMENT_TYPE);
+                XmlOptions.DOCUMENT_TYPE);
 
         if (optionType != null)
         {
@@ -285,48 +289,48 @@ public final class Locale
             QName xsiTypeName = c.getXsiTypeName();
 
             SchemaType xsiSchemaType =
-                xsiTypeName == null ?
-                null : c._locale._schemaTypeLoader.findType(xsiTypeName);
+                    xsiTypeName == null ?
+                            null : c._locale._schemaTypeLoader.findType(xsiTypeName);
 
             if (requestedType == null ||
-                requestedType.isAssignableFrom(xsiSchemaType))
+                    requestedType.isAssignableFrom(xsiSchemaType))
                 type = xsiSchemaType;
         }
 
         // Look for a document element to establish type
-        
+
         if (type == null &&
-            (requestedType == null || requestedType.isDocumentType()))
+                (requestedType == null || requestedType.isDocumentType()))
         {
             assert c.isRoot();
 
             c.push();
 
             QName docElemName =
-                !c.hasAttrs() && Locale.toFirstChildElement(c) &&
-                !Locale.toNextSiblingElement(c)
-                ? c.getName() : null;
+                    !c.hasAttrs() && Locale.toFirstChildElement(c) &&
+                            !Locale.toNextSiblingElement(c)
+                            ? c.getName() : null;
 
             c.pop();
 
             if (docElemName != null)
             {
                 type =
-                    c._locale._schemaTypeLoader.findDocumentType(docElemName);
+                        c._locale._schemaTypeLoader.findDocumentType(docElemName);
 
                 if (type != null && requestedType != null)
                 {
                     QName requesteddocElemNameName = requestedType.getDocumentElementName();
 
                     if (!requesteddocElemNameName.equals(docElemName) &&
-                        !requestedType.isValidSubstitution(docElemName))
+                            !requestedType.isValidSubstitution(docElemName))
                     {
                         throw
-                            new XmlException("Element " +
-                            QNameHelper.pretty(docElemName) +
-                            " is not a valid " +
-                            QNameHelper.pretty(requesteddocElemNameName) +
-                            " document or a valid substitution.");
+                                new XmlException("Element " +
+                                        QNameHelper.pretty(docElemName) +
+                                        " is not a valid " +
+                                        QNameHelper.pretty(requesteddocElemNameName) +
+                                        " document or a valid substitution.");
                     }
                 }
             }
@@ -337,10 +341,10 @@ public final class Locale
             c.push();
 
             type =
-                Locale.toFirstNormalAttr(c) && !Locale.toNextNormalAttr(c)
-                ?
-                c._locale._schemaTypeLoader.findAttributeType(c.getName()) :
-                null;
+                    Locale.toFirstNormalAttr(c) && !Locale.toNextNormalAttr(c)
+                            ?
+                            c._locale._schemaTypeLoader.findAttributeType(c.getName()) :
+                            null;
 
             c.pop();
         }
@@ -392,7 +396,7 @@ public final class Locale
     }
 
     private static void verifyDocumentType(Cur c, QName docElemName)
-        throws XmlException
+            throws XmlException
     {
         assert c.isRoot();
 
@@ -403,15 +407,15 @@ public final class Locale
             StringBuffer sb = null;
 
             if (!Locale.toFirstChildElement(c) ||
-                Locale.toNextSiblingElement(c))
+                    Locale.toNextSiblingElement(c))
             {
                 sb = new StringBuffer();
 
                 sb.append("The document is not a ");
                 sb.append(QNameHelper.pretty(docElemName));
                 sb.append(
-                    c.isRoot() ?
-                    ": no document element" : ": multiple document elements");
+                        c.isRoot() ?
+                                ": no document element" : ": multiple document elements");
             }
             else
             {
@@ -450,7 +454,7 @@ public final class Locale
             if (sb != null)
             {
                 XmlError err = XmlError.forCursor(sb.toString(),
-                    new Cursor(c));
+                        new Cursor(c));
                 throw new XmlException(err.toString(), null, err);
             }
         }
@@ -461,7 +465,7 @@ public final class Locale
     }
 
     private static void verifyAttributeType(Cur c, QName attrName)
-        throws XmlException
+            throws XmlException
     {
         assert c.isRoot();
 
@@ -478,7 +482,7 @@ public final class Locale
                 sb.append("The document is not a ");
                 sb.append(QNameHelper.pretty(attrName));
                 sb.append(
-                    c.isRoot() ? ": no attributes" : ": multiple attributes");
+                        c.isRoot() ? ": no attributes" : ": multiple attributes");
             }
             else
             {
@@ -517,7 +521,7 @@ public final class Locale
             if (sb != null)
             {
                 XmlError err = XmlError.forCursor(sb.toString(),
-                    new Cursor(c));
+                        new Cursor(c));
                 throw new XmlException(err.toString(), null, err);
             }
         }
@@ -530,7 +534,7 @@ public final class Locale
     static boolean isFragmentQName(QName name)
     {
         return name.equals(Locale._openuriFragment) ||
-            name.equals(Locale._xmlFragment);
+                name.equals(Locale._xmlFragment);
     }
 
     static boolean isFragment(Cur start, Cur end)
@@ -577,13 +581,13 @@ public final class Locale
 
         return isFrag || numDocElems != 1;
     }
-    
+
     //
     //
     //
-    
+
     public static XmlObject newInstance(SchemaTypeLoader stl, SchemaType type,
-        XmlOptions options)
+                                        XmlOptions options)
     {
         Locale l = getLocale(stl, options);
 
@@ -628,9 +632,9 @@ public final class Locale
         if (sType.isDocumentType())
             c.createDomDocumentRoot();
         else
-             c.createRoot();
+            c.createRoot();
         c.setType(sType);
-        
+
         XmlObject x = (XmlObject) c.getUser();
 
         c.release();
@@ -643,7 +647,7 @@ public final class Locale
     //
 
     public static DOMImplementation newDomImplementation(SchemaTypeLoader stl,
-        XmlOptions options)
+                                                         XmlOptions options)
     {
         return (DOMImplementation) getLocale(stl, options);
     }
@@ -653,8 +657,8 @@ public final class Locale
     //
 
     public static XmlObject parseToXmlObject(SchemaTypeLoader stl,
-        String xmlText, SchemaType type, XmlOptions options)
-        throws XmlException
+                                             String xmlText, SchemaType type, XmlOptions options)
+            throws XmlException
     {
         Locale l = getLocale(stl, options);
 
@@ -686,8 +690,8 @@ public final class Locale
     }
 
     private XmlObject parseToXmlObject(String xmlText, SchemaType type,
-        XmlOptions options)
-        throws XmlException
+                                       XmlOptions options)
+            throws XmlException
     {
         Cur c = parse(xmlText, type, options);
 
@@ -699,14 +703,14 @@ public final class Locale
     }
 
     Cur parse(String s, SchemaType type, XmlOptions options)
-        throws XmlException
+            throws XmlException
     {
         Reader r = new StringReader(s);
 
         try
         {
             Cur c = getSaxLoader(options).load(this, new InputSource(r),
-                options);
+                    options);
 
             autoTypeDocument(c, type, options);
 
@@ -738,8 +742,8 @@ public final class Locale
      * @deprecated XMLInputStream was deprecated by XMLStreamReader from STaX - jsr173 API.
      */
     public static XmlObject parseToXmlObject(SchemaTypeLoader stl,
-        XMLInputStream xis, SchemaType type, XmlOptions options)
-        throws XmlException, org.apache.xmlbeans.xml.stream.XMLStreamException
+                                             XMLInputStream xis, SchemaType type, XmlOptions options)
+            throws XmlException, org.apache.xmlbeans.xml.stream.XMLStreamException
     {
         Locale l = getLocale(stl, options);
 
@@ -774,8 +778,8 @@ public final class Locale
      * @deprecated XMLInputStream was deprecated by XMLStreamReader from STaX - jsr173 API.
      */
     public XmlObject parseToXmlObject(XMLInputStream xis, SchemaType type,
-        XmlOptions options)
-        throws XmlException, org.apache.xmlbeans.xml.stream.XMLStreamException
+                                      XmlOptions options)
+            throws XmlException, org.apache.xmlbeans.xml.stream.XMLStreamException
     {
         Cur c;
 
@@ -802,8 +806,8 @@ public final class Locale
     //
 
     public static XmlObject parseToXmlObject(SchemaTypeLoader stl,
-        XMLStreamReader xsr, SchemaType type, XmlOptions options)
-        throws XmlException
+                                             XMLStreamReader xsr, SchemaType type, XmlOptions options)
+            throws XmlException
     {
         Locale l = getLocale(stl, options);
 
@@ -835,8 +839,8 @@ public final class Locale
     }
 
     public XmlObject parseToXmlObject(XMLStreamReader xsr, SchemaType type,
-        XmlOptions options)
-        throws XmlException
+                                      XmlOptions options)
+            throws XmlException
     {
         Cur c;
 
@@ -873,7 +877,7 @@ public final class Locale
         if (loc != null)
         {
             context.lineNumber(loc.getLineNumber(), loc.getColumnNumber(),
-                loc.getCharacterOffset());
+                    loc.getCharacterOffset());
         }
     }
 
@@ -884,9 +888,9 @@ public final class Locale
         for (int a = 0; a < n; a++)
         {
             context.attr(xsr.getAttributeLocalName(a),
-                xsr.getAttributeNamespace(a),
-                xsr.getAttributePrefix(a),
-                xsr.getAttributeValue(a));
+                    xsr.getAttributeNamespace(a),
+                    xsr.getAttributePrefix(a),
+                    xsr.getAttributeValue(a));
         }
     }
 
@@ -900,10 +904,10 @@ public final class Locale
 
             if (prefix == null || prefix.length() == 0)
                 context.attr("xmlns", _xmlnsUri, null,
-                    xsr.getNamespaceURI(a));
+                        xsr.getNamespaceURI(a));
             else
                 context.attr(prefix, _xmlnsUri, "xmlns",
-                    xsr.getNamespaceURI(a));
+                        xsr.getNamespaceURI(a));
         }
 
     }
@@ -912,7 +916,7 @@ public final class Locale
      * @deprecated XMLInputStream was deprecated by XMLStreamReader from STaX - jsr173 API.
      */
     private Cur loadXMLInputStream(XMLInputStream xis, XmlOptions options)
-        throws org.apache.xmlbeans.xml.stream.XMLStreamException
+            throws org.apache.xmlbeans.xml.stream.XMLStreamException
     {
         options = XmlOptions.maskNull(options);
 
@@ -948,124 +952,124 @@ public final class Locale
         {
             switch (xe.getType())
             {
-            case XMLEvent.START_DOCUMENT:
-                StartDocument doc = (StartDocument) xe;
+                case XMLEvent.START_DOCUMENT:
+                    StartDocument doc = (StartDocument) xe;
 
-                systemId = doc.getSystemId();
-                encoding = doc.getCharacterEncodingScheme();
-                version = doc.getVersion();
-                standAlone = doc.isStandalone();
-                standAlone = doc.isStandalone();
+                    systemId = doc.getSystemId();
+                    encoding = doc.getCharacterEncodingScheme();
+                    version = doc.getVersion();
+                    standAlone = doc.isStandalone();
+                    standAlone = doc.isStandalone();
 
-                if (lineNums)
-                    lineNumber(xe, context);
+                    if (lineNums)
+                        lineNumber(xe, context);
 
-                break;
-
-            case XMLEvent.END_DOCUMENT:
-                if (lineNums)
-                    lineNumber(xe, context);
-
-                break events;
-
-            case XMLEvent.NULL_ELEMENT:
-                if (!xis.hasNext())
-                    break events;
-                break;
-
-            case XMLEvent.START_ELEMENT:
-                context.startElement(XMLNameHelper.getQName(xe.getName()));
-
-                if (lineNums)
-                    lineNumber(xe, context);
-
-                for (AttributeIterator ai = ((StartElement) xe).getAttributes();
-                     ai.hasNext();)
-                {
-                    Attribute attr = ai.next();
-
-                    context.attr(XMLNameHelper.getQName(attr.getName()),
-                        attr.getValue());
-                }
-
-                for (AttributeIterator ai = ((StartElement) xe).getNamespaces()
-                    ; ai.hasNext();)
-                {
-                    Attribute attr = ai.next();
-
-                    XMLName name = attr.getName();
-                    String local = name.getLocalName();
-
-                    if (name.getPrefix() == null && local.equals("xmlns"))
-                        local = "";
-
-                    context.xmlns(local, attr.getValue());
-                }
-
-                break;
-
-            case XMLEvent.END_ELEMENT:
-                context.endElement();
-
-                if (lineNums)
-                    lineNumber(xe, context);
-
-                break;
-
-            case XMLEvent.SPACE:
-                if (((Space) xe).ignorable())
                     break;
 
-                // Fall through
+                case XMLEvent.END_DOCUMENT:
+                    if (lineNums)
+                        lineNumber(xe, context);
 
-            case XMLEvent.CHARACTER_DATA:
-                CharacterData cd = (CharacterData) xe;
+                    break events;
 
-                if (cd.hasContent())
-                {
-                    context.text(cd.getContent());
+                case XMLEvent.NULL_ELEMENT:
+                    if (!xis.hasNext())
+                        break events;
+                    break;
+
+                case XMLEvent.START_ELEMENT:
+                    context.startElement(XMLNameHelper.getQName(xe.getName()));
 
                     if (lineNums)
                         lineNumber(xe, context);
-                }
 
-                break;
+                    for (AttributeIterator ai = ((StartElement) xe).getAttributes();
+                         ai.hasNext();)
+                    {
+                        Attribute attr = ai.next();
 
-            case XMLEvent.COMMENT:
-                org.apache.xmlbeans.xml.stream.Comment comment =
-                    (org.apache.xmlbeans.xml.stream.Comment) xe;
+                        context.attr(XMLNameHelper.getQName(attr.getName()),
+                                attr.getValue());
+                    }
 
-                if (comment.hasContent())
-                {
-                    context.comment(comment.getContent());
+                    for (AttributeIterator ai = ((StartElement) xe).getNamespaces()
+                         ; ai.hasNext();)
+                    {
+                        Attribute attr = ai.next();
+
+                        XMLName name = attr.getName();
+                        String local = name.getLocalName();
+
+                        if (name.getPrefix() == null && local.equals("xmlns"))
+                            local = "";
+
+                        context.xmlns(local, attr.getValue());
+                    }
+
+                    break;
+
+                case XMLEvent.END_ELEMENT:
+                    context.endElement();
 
                     if (lineNums)
                         lineNumber(xe, context);
-                }
 
-                break;
+                    break;
 
-            case XMLEvent.PROCESSING_INSTRUCTION:
-                ProcessingInstruction procInstr = (ProcessingInstruction) xe;
+                case XMLEvent.SPACE:
+                    if (((Space) xe).ignorable())
+                        break;
 
-                context.procInst(procInstr.getTarget(), procInstr.getData());
+                    // Fall through
 
-                if (lineNums)
-                    lineNumber(xe, context);
+                case XMLEvent.CHARACTER_DATA:
+                    CharacterData cd = (CharacterData) xe;
 
-                break;
+                    if (cd.hasContent())
+                    {
+                        context.text(cd.getContent());
+
+                        if (lineNums)
+                            lineNumber(xe, context);
+                    }
+
+                    break;
+
+                case XMLEvent.COMMENT:
+                    org.apache.xmlbeans.xml.stream.Comment comment =
+                            (org.apache.xmlbeans.xml.stream.Comment) xe;
+
+                    if (comment.hasContent())
+                    {
+                        context.comment(comment.getContent());
+
+                        if (lineNums)
+                            lineNumber(xe, context);
+                    }
+
+                    break;
+
+                case XMLEvent.PROCESSING_INSTRUCTION:
+                    ProcessingInstruction procInstr = (ProcessingInstruction) xe;
+
+                    context.procInst(procInstr.getTarget(), procInstr.getData());
+
+                    if (lineNums)
+                        lineNumber(xe, context);
+
+                    break;
 
                 // These are ignored
-            case XMLEvent.ENTITY_REFERENCE:
-            case XMLEvent.START_PREFIX_MAPPING:
-            case XMLEvent.END_PREFIX_MAPPING:
-            case XMLEvent.CHANGE_PREFIX_MAPPING:
-            case XMLEvent.XML_EVENT:
-                break;
+                case XMLEvent.ENTITY_REFERENCE:
+                case XMLEvent.START_PREFIX_MAPPING:
+                case XMLEvent.END_PREFIX_MAPPING:
+                case XMLEvent.CHANGE_PREFIX_MAPPING:
+                case XMLEvent.XML_EVENT:
+                    break;
 
-            default :
-                throw new RuntimeException(
-                    "Unhandled xml event type: " + xe.getTypeAsString());
+                default :
+                    throw new RuntimeException(
+                            "Unhandled xml event type: " + xe.getTypeAsString());
             }
         }
 
@@ -1084,7 +1088,7 @@ public final class Locale
     }
 
     private Cur loadXMLStreamReader(XMLStreamReader xsr, XmlOptions options)
-        throws XMLStreamException
+            throws XMLStreamException
     {
         options = XmlOptions.maskNull(options);
 
@@ -1101,7 +1105,7 @@ public final class Locale
         {
             switch (eventType)
             {
-            case XMLStreamReader.START_DOCUMENT:
+                case XMLStreamReader.START_DOCUMENT:
                 {
                     depth++;
 
@@ -1115,7 +1119,7 @@ public final class Locale
                     break;
                 }
 
-            case XMLStreamReader.END_DOCUMENT:
+                case XMLStreamReader.END_DOCUMENT:
                 {
                     depth--;
 
@@ -1125,7 +1129,7 @@ public final class Locale
                     break events;
                 }
 
-            case XMLStreamReader.START_ELEMENT:
+                case XMLStreamReader.START_ELEMENT:
                 {
                     depth++;
                     context.startElement(xsr.getName());
@@ -1139,7 +1143,7 @@ public final class Locale
                     break;
                 }
 
-            case XMLStreamReader.END_ELEMENT:
+                case XMLStreamReader.END_ELEMENT:
                 {
                     depth--;
                     context.endElement();
@@ -1150,11 +1154,11 @@ public final class Locale
                     break;
                 }
 
-            case XMLStreamReader.CHARACTERS:
-            case XMLStreamReader.CDATA:
+                case XMLStreamReader.CHARACTERS:
+                case XMLStreamReader.CDATA:
                 {
                     context.text(xsr.getTextCharacters(), xsr.getTextStart(),
-                        xsr.getTextLength());
+                            xsr.getTextLength());
 
                     if (lineNums)
                         lineNumber(xsr, context);
@@ -1162,7 +1166,7 @@ public final class Locale
                     break;
                 }
 
-            case XMLStreamReader.COMMENT:
+                case XMLStreamReader.COMMENT:
                 {
                     String comment = xsr.getText();
 
@@ -1174,7 +1178,7 @@ public final class Locale
                     break;
                 }
 
-            case XMLStreamReader.PROCESSING_INSTRUCTION:
+                case XMLStreamReader.PROCESSING_INSTRUCTION:
                 {
                     context.procInst(xsr.getPITarget(), xsr.getPIData());
 
@@ -1184,31 +1188,31 @@ public final class Locale
                     break;
                 }
 
-            case XMLStreamReader.ATTRIBUTE:
+                case XMLStreamReader.ATTRIBUTE:
                 {
                     doAttributes(xsr, context);
                     break;
                 }
 
-            case XMLStreamReader.NAMESPACE:
+                case XMLStreamReader.NAMESPACE:
                 {
                     doNamespaces(xsr, context);
                     break;
                 }
 
-            case XMLStreamReader.ENTITY_REFERENCE:
+                case XMLStreamReader.ENTITY_REFERENCE:
                 {
                     context.text(xsr.getText());
                     break;
                 }
 
-            case XMLStreamReader.SPACE:
-            case XMLStreamReader.DTD:
-                break;
+                case XMLStreamReader.SPACE:
+                case XMLStreamReader.DTD:
+                    break;
 
-            default :
-                throw new RuntimeException(
-                    "Unhandled xml event type: " + eventType);
+                default :
+                    throw new RuntimeException(
+                            "Unhandled xml event type: " + eventType);
             }
 
             if (!xsr.hasNext() || depth <= 0)
@@ -1233,8 +1237,8 @@ public final class Locale
     //
 
     public static XmlObject parseToXmlObject(SchemaTypeLoader stl,
-        InputStream is, SchemaType type, XmlOptions options)
-        throws XmlException, IOException
+                                             InputStream is, SchemaType type, XmlOptions options)
+            throws XmlException, IOException
     {
         Locale l = getLocale(stl, options);
 
@@ -1266,11 +1270,11 @@ public final class Locale
     }
 
     private XmlObject parseToXmlObject(InputStream is, SchemaType type,
-        XmlOptions options)
-        throws XmlException, IOException
+                                       XmlOptions options)
+            throws XmlException, IOException
     {
         Cur c = getSaxLoader(options).load(this, new InputSource(is),
-            options);
+                options);
 
         autoTypeDocument(c, type, options);
 
@@ -1286,8 +1290,8 @@ public final class Locale
     //
 
     public static XmlObject parseToXmlObject(SchemaTypeLoader stl,
-        Reader reader, SchemaType type, XmlOptions options)
-        throws XmlException, IOException
+                                             Reader reader, SchemaType type, XmlOptions options)
+            throws XmlException, IOException
     {
         Locale l = getLocale(stl, options);
 
@@ -1319,11 +1323,11 @@ public final class Locale
     }
 
     private XmlObject parseToXmlObject(Reader reader, SchemaType type,
-        XmlOptions options)
-        throws XmlException, IOException
+                                       XmlOptions options)
+            throws XmlException, IOException
     {
         Cur c = getSaxLoader(options).load(this, new InputSource(reader),
-            options);
+                options);
 
         autoTypeDocument(c, type, options);
 
@@ -1339,8 +1343,8 @@ public final class Locale
     //
 
     public static XmlObject parseToXmlObject(SchemaTypeLoader stl, Node node,
-        SchemaType type, XmlOptions options)
-        throws XmlException
+                                             SchemaType type, XmlOptions options)
+            throws XmlException
     {
         Locale l = getLocale(stl, options);
 
@@ -1372,8 +1376,8 @@ public final class Locale
     }
 
     public XmlObject parseToXmlObject(Node node, SchemaType type,
-        XmlOptions options)
-        throws XmlException
+                                      XmlOptions options)
+            throws XmlException
     {
         LoadContext context = new Cur.CurLoadContext(this, options);
 
@@ -1402,18 +1406,18 @@ public final class Locale
     {
         switch (n.getNodeType())
         {
-        case Node.DOCUMENT_NODE:
-        case Node.DOCUMENT_FRAGMENT_NODE:
-        case Node.ENTITY_REFERENCE_NODE:
+            case Node.DOCUMENT_NODE:
+            case Node.DOCUMENT_FRAGMENT_NODE:
+            case Node.ENTITY_REFERENCE_NODE:
             {
                 loadNodeChildren(n, context);
 
                 break;
             }
-        case Node.ELEMENT_NODE:
+            case Node.ELEMENT_NODE:
             {
                 context.startElement(
-                    makeQualifiedQName(n.getNamespaceURI(), n.getNodeName()));
+                        makeQualifiedQName(n.getNamespaceURI(), n.getNodeName()));
 
                 NamedNodeMap attrs = n.getAttributes();
 
@@ -1433,8 +1437,8 @@ public final class Locale
                     }
                     else
                         context.attr(
-                            makeQualifiedQName(a.getNamespaceURI(), attrName),
-                            attrValue);
+                                makeQualifiedQName(a.getNamespaceURI(), attrName),
+                                attrValue);
                 }
 
                 loadNodeChildren(n, context);
@@ -1443,26 +1447,26 @@ public final class Locale
 
                 break;
             }
-        case Node.TEXT_NODE:
-        case Node.CDATA_SECTION_NODE:
+            case Node.TEXT_NODE:
+            case Node.CDATA_SECTION_NODE:
             {
                 context.text(n.getNodeValue());
                 break;
             }
-        case Node.COMMENT_NODE:
+            case Node.COMMENT_NODE:
             {
                 context.comment(n.getNodeValue());
                 break;
             }
-        case Node.PROCESSING_INSTRUCTION_NODE:
+            case Node.PROCESSING_INSTRUCTION_NODE:
             {
                 context.procInst(n.getNodeName(), n.getNodeValue());
                 break;
             }
-        case Node.DOCUMENT_TYPE_NODE:
-        case Node.ENTITY_NODE:
-        case Node.NOTATION_NODE:
-        case Node.ATTRIBUTE_NODE:
+            case Node.DOCUMENT_TYPE_NODE:
+            case Node.ENTITY_NODE:
+            case Node.NOTATION_NODE:
+            case Node.ATTRIBUTE_NODE:
             {
                 throw new RuntimeException("Unexpected node");
             }
@@ -1474,8 +1478,8 @@ public final class Locale
     //
 
     private class XmlSaxHandlerImpl
-        extends SaxHandler
-        implements XmlSaxHandler
+            extends SaxHandler
+            implements XmlSaxHandler
     {
         XmlSaxHandlerImpl(Locale l, SchemaType type, XmlOptions options)
         {
@@ -1515,7 +1519,7 @@ public final class Locale
         }
 
         public XmlObject getObject()
-            throws XmlException
+                throws XmlException
         {
             if (_context == null)
                 return null;
@@ -1547,7 +1551,7 @@ public final class Locale
     }
 
     public static XmlSaxHandler newSaxHandler(SchemaTypeLoader stl,
-        SchemaType type, XmlOptions options)
+                                              SchemaType type, XmlOptions options)
     {
         Locale l = getLocale(stl, options);
 
@@ -1613,15 +1617,15 @@ public final class Locale
         int i = qname.indexOf(':');
 
         return i < 0
-            ?
-            _qnameFactory.getQName(uri, qname)
-            :
-            _qnameFactory.getQName(uri, qname.substring(i + 1),
-                qname.substring(0, i));
+                ?
+                _qnameFactory.getQName(uri, qname)
+                :
+                _qnameFactory.getQName(uri, qname.substring(i + 1),
+                        qname.substring(0, i));
     }
 
     static private class DocProps
-        extends XmlDocumentProperties
+            extends XmlDocumentProperties
     {
         private HashMap _map = new HashMap();
 
@@ -1771,7 +1775,7 @@ public final class Locale
         else if (wsr == Locale.WS_COLLAPSE)
         {
             if (CharUtil.isWhiteSpace(s.charAt(0)) ||
-                CharUtil.isWhiteSpace(s.charAt(l - 1)))
+                    CharUtil.isWhiteSpace(s.charAt(l - 1)))
                 return processWhiteSpaceRule(s, wsr);
 
             boolean lastWasWhite = false;
@@ -1889,13 +1893,13 @@ public final class Locale
     }
 
     private static ThreadLocal tl_scrubBuffer =
-        new ThreadLocal()
-        {
-            protected Object initialValue()
+            new ThreadLocal()
             {
-                return new SoftReference(new ScrubBuffer());
-            }
-        };
+                protected Object initialValue()
+                {
+                    return new SoftReference(new ScrubBuffer());
+                }
+            };
 
     static ScrubBuffer getScrubBuffer(int wsr)
     {
@@ -1919,20 +1923,20 @@ public final class Locale
         {
             switch (c.kind())
             {
-            case ROOT:
-            case ELEM:
-                return true;
-            case -ROOT:
-            case -ELEM:
-                c.pop();
-                return false;
-            case COMMENT:
-            case PROCINST:
-                c.skip();
-                break;
-            default                      :
-                c.nextWithAttrs();
-                break;
+                case ROOT:
+                case ELEM:
+                    return true;
+                case -ROOT:
+                case -ELEM:
+                    c.pop();
+                    return false;
+                case COMMENT:
+                case PROCINST:
+                    c.skip();
+                    break;
+                default                      :
+                    c.nextWithAttrs();
+                    break;
             }
         }
     }
@@ -2029,9 +2033,9 @@ public final class Locale
         int db = _nthCache_B.distance(parent, name, set, n);
 
         Xobj x =
-            da <= db
-            ? _nthCache_A.fetch(parent, name, set, n)
-            : _nthCache_B.fetch(parent, name, set, n);
+                da <= db
+                        ? _nthCache_A.fetch(parent, name, set, n)
+                        : _nthCache_B.fetch(parent, name, set, n);
 
         if (da == db)
         {
@@ -2106,20 +2110,20 @@ public final class Locale
         {
             switch (c.kind())
             {
-            case ROOT:
-            case ELEM:
-                break loop;
-            case -ROOT:
-            case -ELEM:
-                c.moveTo(originalXobj, originalPos);
-                return false;
-            case COMMENT:
-            case PROCINST:
-                c.skip();
-                break;
-            default:
-                c.nextWithAttrs();
-                break;
+                case ROOT:
+                case ELEM:
+                    break loop;
+                case -ROOT:
+                case -ELEM:
+                    c.moveTo(originalXobj, originalPos);
+                    return false;
+                case COMMENT:
+                case PROCINST:
+                    c.skip();
+                    break;
+                default:
+                    c.nextWithAttrs();
+                    break;
             }
         }
 
@@ -2343,20 +2347,20 @@ public final class Locale
         }
 
         private boolean nameHit(QName namePattern, QNameSet setPattern,
-            QName name)
+                                QName name)
         {
             return
-                setPattern == null
-                ? namesSame(namePattern, name)
-                : setPattern.contains(name);
+                    setPattern == null
+                            ? namesSame(namePattern, name)
+                            : setPattern.contains(name);
         }
 
         private boolean cacheSame(QName namePattern, QNameSet setPattern)
         {
             return
-                setPattern == null
-                ? namesSame(namePattern, _name)
-                : setsSame(setPattern, _set);
+                    setPattern == null
+                            ? namesSame(namePattern, _name)
+                            : setsSame(setPattern, _set);
         }
 
         int distance(Xobj parent, QName name, QNameSet set, int n)
@@ -2377,7 +2381,7 @@ public final class Locale
             assert n >= 0;
 
             if (_version != Locale.this.version() || _parent != parent ||
-                !cacheSame(name, set) || n == 0)
+                    !cacheSame(name, set) || n == 0)
             {
                 _version = Locale.this.version();
                 _parent = parent;
@@ -2455,24 +2459,24 @@ public final class Locale
     //
     //
     //
-    
+
     Dom findDomNthChild ( Dom parent, int n )
     {
         assert n >= 0;
-        
+
         if (parent == null)
             return null;
-        
+
         int da = _domNthCache_A.distance(parent, n);
         int db = _domNthCache_B.distance(parent, n);
-        
-       
+
+
         // the "better" cache should never walk more than 1/2 len
         Dom x = null;
         boolean bInvalidate = (db - _domNthCache_B._len / 2 > 0) &&
-            (db - _domNthCache_B._len / 2 - domNthCache.BLITZ_BOUNDARY > 0);
+                (db - _domNthCache_B._len / 2 - domNthCache.BLITZ_BOUNDARY > 0);
         boolean aInvalidate = (da - _domNthCache_A._len / 2 > 0) &&
-            (da - _domNthCache_A._len / 2 - domNthCache.BLITZ_BOUNDARY > 0);
+                (da - _domNthCache_A._len / 2 - domNthCache.BLITZ_BOUNDARY > 0);
         if (da <= db)
             if (!aInvalidate)
                 x = _domNthCache_A.fetch(parent, n);
@@ -2495,33 +2499,33 @@ public final class Locale
             _domNthCache_A = _domNthCache_B;
             _domNthCache_B = temp;
         }
-        
+
         return x;
     }
-    
+
     int domLength ( Dom parent )
     {
         if (parent == null)
             return 0;
-        
+
         int da = _domNthCache_A.distance( parent, 0 );
         int db = _domNthCache_B.distance( parent, 0 );
-        
+
         int len =
-            da <= db
-            ? _domNthCache_A.length( parent )
-            : _domNthCache_B.length( parent );
-        
+                da <= db
+                        ? _domNthCache_A.length( parent )
+                        : _domNthCache_B.length( parent );
+
         if (da == db)
         {
             domNthCache temp = _domNthCache_A;
             _domNthCache_A = _domNthCache_B;
             _domNthCache_B = temp;
         }
-        
+
         return len;
     }
-    
+
     void invalidateDomCaches ( Dom d )
     {
         if (_domNthCache_A._parent == d)
@@ -2529,28 +2533,28 @@ public final class Locale
         if (_domNthCache_B._parent == d)
             _domNthCache_B._version = -1;
     }
-    
+
     boolean isDomCached ( Dom d )
     {
         return _domNthCache_A._parent == d || _domNthCache_B._parent == d;
     }
-    
+
     class domNthCache
     {
-        
+
         int distance ( Dom parent, int n )
         {
             assert n >= 0;
-            
+
             if (_version != Locale.this.version())
                 return Integer.MAX_VALUE - 1;
-            
+
             if (parent != _parent)
                 return Integer.MAX_VALUE;
-            
+
             return n > _n ? n - _n : _n - n;
         }
-        
+
         int length ( Dom parent )
         {
             if (_version != Locale.this.version() || _parent != parent)
@@ -2561,11 +2565,11 @@ public final class Locale
                 _n = -1;
                 _len = -1;
             }
-            
+
             if (_len == -1)
             {
                 Dom x = null;
-                
+
                 if (_child != null && _n != -1)
                 {
                     x = _child;
@@ -2575,26 +2579,26 @@ public final class Locale
                 {
                     x = DomImpl.firstChild(_parent);
                     _len = 0;
-                    
+
                     // cache the 0th child
                     _child = x;
                     _n = 0;
                 }
-                
+
                 for (; x != null; x = DomImpl.nextSibling(x) )
                 {
                     _len++;
                 }
             }
-            
-            
+
+
             return _len;
         }
-        
+
         Dom fetch ( Dom parent, int n )
         {
             assert n >= 0;
-            
+
             if (_version != Locale.this.version() || _parent != parent)
             {
                 _parent = parent;
@@ -2602,7 +2606,7 @@ public final class Locale
                 _child = null;
                 _n = -1;
                 _len = -1;
-                
+
                 for (Dom x = DomImpl.firstChild(_parent); x != null; x = DomImpl.nextSibling(x) )
                 {
                     _n++;
@@ -2612,13 +2616,13 @@ public final class Locale
                         break;
                     }
                 }
-                
+
                 return _child;
             }
-            
+
             if (_n < 0)
                 return null;
-            
+
             if (n > _n)
             {
                 while ( n > _n )
@@ -2627,10 +2631,10 @@ public final class Locale
                     {
                         if (x == null)
                             return null;
-                        
+
                         _child = x;
                         _n++;
-                        
+
                         break;
                     }
                 }
@@ -2643,28 +2647,28 @@ public final class Locale
                     {
                         if (x == null)
                             return null;
-                        
+
                         _child = x;
                         _n--;
-                        
+
                         break;
                     }
                 }
             }
-            
+
             return _child;
         }
-        
+
         public static final int BLITZ_BOUNDARY = 40; //walk small lists
-	 private long  _version;
+        private long  _version;
         private Dom   _parent;
         private Dom   _child;
         private int   _n;
         private int   _len;
     }
-    
+
     //
-    // 
+    //
     //
 
     CharUtil getCharUtil()
@@ -2703,7 +2707,7 @@ public final class Locale
     }
 
     final static class Ref
-        extends PhantomReference
+            extends PhantomReference
     {
         Ref(Cur c, Object obj)
         {
@@ -2796,7 +2800,7 @@ public final class Locale
     CdataNode createCdataNode()
     {
         return _saaj == null ?
-            new CdataNode(this) : new SaajCdataNode(this);
+                new CdataNode(this) : new SaajCdataNode(this);
     }
 
     boolean entered()
@@ -2822,7 +2826,7 @@ public final class Locale
             //move this assignment down so if array allocation fails, error is not masked
             _numTempFramesLeft = _tempFrames.length;
             System.arraycopy(_tempFrames, 0, newTempFrames, 0,
-                _tempFrames.length);
+                    _tempFrames.length);
             _tempFrames = newTempFrames;
         }
 
@@ -2863,9 +2867,9 @@ public final class Locale
         // assert _numTempFramesLeft >= 0;
         //asserts computed frame fits between 0 and _tempFrames.length
         assert _numTempFramesLeft >= 0 &&
-            (_numTempFramesLeft <= _tempFrames.length - 1):
-            " Temp frames mismanaged. Impossible stack frame. Unsynchronized: " +
-            noSync();
+                (_numTempFramesLeft <= _tempFrames.length - 1):
+                " Temp frames mismanaged. Impossible stack frame. Unsynchronized: " +
+                        noSync();
 
         int frame = _tempFrames.length - ++_numTempFramesLeft;
 
@@ -2917,8 +2921,8 @@ public final class Locale
         char ch;
 
         if (((ch = name.charAt(0)) == 'x' || ch == 'X') &&
-            ((ch = name.charAt(1)) == 'm' || ch == 'M') &&
-            ((ch = name.charAt(2)) == 'l' || ch == 'L'))
+                ((ch = name.charAt(1)) == 'm' || ch == 'M') &&
+                ((ch = name.charAt(2)) == 'l' || ch == 'L'))
         {
             return true;
         }
@@ -2942,9 +2946,9 @@ public final class Locale
             prefix = "";
 
         return
-            prefix.length() == 0
-            ? makeQName(_xmlnsUri, "xmlns", "")
-            : makeQName(_xmlnsUri, prefix, "xmlns");
+                prefix.length() == 0
+                        ? makeQName(_xmlnsUri, "xmlns", "")
+                        : makeQName(_xmlnsUri, prefix, "xmlns");
     }
 
     static String xmlnsPrefix(QName name)
@@ -2959,7 +2963,7 @@ public final class Locale
     static abstract class LoadContext
     {
         protected abstract void startDTD(String name, String publicId,
-            String systemId);
+                                         String systemId);
 
         protected abstract void endDTD();
 
@@ -2970,7 +2974,7 @@ public final class Locale
         protected abstract void attr(QName name, String value);
 
         protected abstract void attr(String local, String uri, String prefix,
-            String value);
+                                     String value);
 
         protected abstract void xmlns(String prefix, String uri);
 
@@ -2993,7 +2997,7 @@ public final class Locale
         protected abstract void bookmarkLastNonAttr(XmlBookmark bm);
 
         protected abstract void bookmarkLastAttr(QName attrName,
-            XmlBookmark bm);
+                                                 XmlBookmark bm);
 
         protected abstract void lineNumber(int line, int column, int offset);
 
@@ -3022,7 +3026,7 @@ public final class Locale
     }
 
     private static class DefaultEntityResolver
-        implements EntityResolver
+            implements EntityResolver
     {
         public InputSource resolveEntity(String publicId, String systemId)
         {
@@ -3048,14 +3052,14 @@ public final class Locale
         }
 
         XMLReader xr = (XMLReader) options.get(
-            XmlOptions.LOAD_USE_XMLREADER);
+                XmlOptions.LOAD_USE_XMLREADER);
 
         if (xr == null) {
             try {
                 xr = SAXHelper.newXMLReader(new XmlOptionsBean(options));
             } catch(Exception e) {
                 throw new XmlException("Problem creating XMLReader", e);
-            } 
+            }
         }
 
         SaxLoader sl = new XmlReaderSaxLoader(xr);
@@ -3069,7 +3073,7 @@ public final class Locale
     }
 
     private static class XmlReaderSaxLoader
-        extends SaxLoader
+            extends SaxLoader
     {
         XmlReaderSaxLoader(XMLReader xr)
         {
@@ -3078,7 +3082,7 @@ public final class Locale
     }
 
     private static abstract class SaxHandler
-        implements ContentHandler, LexicalHandler , DeclHandler, DTDHandler
+            implements ContentHandler, LexicalHandler , DeclHandler, DTDHandler
     {
         SaxHandler(Locator startLocator)
         {
@@ -3099,34 +3103,34 @@ public final class Locale
             _context = new Cur.CurLoadContext(_locale, options);
 
             _wantLineNumbers =
-                _startLocator != null &&
-                options.hasOption(XmlOptions.LOAD_LINE_NUMBERS);
+                    _startLocator != null &&
+                            options.hasOption(XmlOptions.LOAD_LINE_NUMBERS);
             _wantLineNumbersAtEndElt =
-                _startLocator != null &&
-                options.hasOption(XmlOptions.LOAD_LINE_NUMBERS_END_ELEMENT);
+                    _startLocator != null &&
+                            options.hasOption(XmlOptions.LOAD_LINE_NUMBERS_END_ELEMENT);
             _wantCdataBookmarks =
-                _startLocator != null &&
-                options.hasOption(XmlOptions.LOAD_SAVE_CDATA_BOOKMARKS);
+                    _startLocator != null &&
+                            options.hasOption(XmlOptions.LOAD_SAVE_CDATA_BOOKMARKS);
 
             if (options.hasOption(XmlOptions.LOAD_ENTITY_BYTES_LIMIT))
                 _entityBytesLimit = ((Integer)(options.get(XmlOptions.LOAD_ENTITY_BYTES_LIMIT))).intValue();
         }
 
         public void startDocument()
-            throws SAXException
+                throws SAXException
         {
             // Do nothing ... start of document is implicit
         }
 
         public void endDocument()
-            throws SAXException
+                throws SAXException
         {
             // Do nothing ... end of document is implicit
         }
 
         public void startElement(String uri, String local, String qName,
-            Attributes atts)
-            throws SAXException
+                                 Attributes atts)
+                throws SAXException
         {
             if (local.length() == 0)
                 local = qName;
@@ -3137,8 +3141,8 @@ public final class Locale
             if (qName.indexOf(':') >= 0 && uri.length() == 0)
             {
                 XmlError err =
-                    XmlError.forMessage("Use of undefined namespace prefix: " +
-                    qName.substring(0, qName.indexOf(':')));
+                        XmlError.forMessage("Use of undefined namespace prefix: " +
+                                qName.substring(0, qName.indexOf(':')));
 
                 throw new XmlRuntimeException(err.toString(), null, err);
             }
@@ -3148,8 +3152,8 @@ public final class Locale
             if (_wantLineNumbers)
             {
                 _context.bookmark(
-                    new XmlLineNumber(_startLocator.getLineNumber(),
-                        _startLocator.getColumnNumber() - 1, -1));
+                        new XmlLineNumber(_startLocator.getLineNumber(),
+                                _startLocator.getColumnNumber() - 1, -1));
             }
 
             for (int i = 0, len = atts.getLength(); i < len; i++)
@@ -3167,11 +3171,11 @@ public final class Locale
                     if (prefix.length() == 0)
                     {
                         XmlError err =
-                            XmlError.forMessage("Prefix not specified",
-                                XmlError.SEVERITY_ERROR);
+                                XmlError.forMessage("Prefix not specified",
+                                        XmlError.SEVERITY_ERROR);
 
                         throw new XmlRuntimeException(err.toString(), null,
-                            err);
+                                err);
                     }
 
                     String attrUri = atts.getValue(i);
@@ -3179,13 +3183,13 @@ public final class Locale
                     if (attrUri.length() == 0)
                     {
                         XmlError err =
-                            XmlError.forMessage(
-                                "Prefix can't be mapped to no namespace: " +
-                            prefix,
-                                XmlError.SEVERITY_ERROR);
+                                XmlError.forMessage(
+                                        "Prefix can't be mapped to no namespace: " +
+                                                prefix,
+                                        XmlError.SEVERITY_ERROR);
 
                         throw new XmlRuntimeException(err.toString(), null,
-                            err);
+                                err);
                     }
 
                     _context.xmlns(prefix, attrUri);
@@ -3196,32 +3200,32 @@ public final class Locale
 
                     if (colon < 0)
                         _context.attr(aqn, atts.getURI(i), null,
-                            atts.getValue(i));
+                                atts.getValue(i));
                     else
                     {
                         _context.attr(aqn.substring(colon + 1), atts.getURI(i), aqn.substring(
-                            0, colon),
-                            atts.getValue(i));
+                                        0, colon),
+                                atts.getValue(i));
                     }
                 }
             }
         }
 
         public void endElement(String namespaceURI, String localName,
-            String qName)
-            throws SAXException
+                               String qName)
+                throws SAXException
         {
             _context.endElement();
             if (_wantLineNumbersAtEndElt)
             {
                 _context.bookmark(
-                    new XmlLineNumber(_startLocator.getLineNumber(),
-                        _startLocator.getColumnNumber() - 1, -1));
+                        new XmlLineNumber(_startLocator.getLineNumber(),
+                                _startLocator.getColumnNumber() - 1, -1));
             }
         }
 
         public void characters(char ch[], int start, int length)
-            throws SAXException
+                throws SAXException
         {
             _context.text(ch, start, length);
 
@@ -3241,80 +3245,80 @@ public final class Locale
         }
 
         public void ignorableWhitespace(char ch[], int start, int length)
-            throws SAXException
+                throws SAXException
         {
         }
 
         public void comment(char ch[], int start, int length)
-            throws SAXException
+                throws SAXException
         {
             _context.comment(ch, start, length);
         }
 
         public void processingInstruction(String target, String data)
-            throws SAXException
+                throws SAXException
         {
             _context.procInst(target, data);
         }
 
         public void startDTD(String name, String publicId, String systemId)
-            throws SAXException
+                throws SAXException
         {
             _context.startDTD(name, publicId, systemId);
         }
 
         public void endDTD()
-            throws SAXException
+                throws SAXException
         {
             _context.endDTD();
         }
 
         public void startPrefixMapping(String prefix, String uri)
-            throws SAXException
+                throws SAXException
         {
             if (beginsWithXml(prefix) &&
-                !("xml".equals(prefix) && _xml1998Uri.equals(uri)))
+                    !("xml".equals(prefix) && _xml1998Uri.equals(uri)))
             {
                 XmlError err =
-                    XmlError.forMessage(
-                        "Prefix can't begin with XML: " + prefix,
-                        XmlError.SEVERITY_ERROR);
+                        XmlError.forMessage(
+                                "Prefix can't begin with XML: " + prefix,
+                                XmlError.SEVERITY_ERROR);
 
                 throw new XmlRuntimeException(err.toString(), null, err);
             }
         }
 
         public void endPrefixMapping(String prefix)
-            throws SAXException
+                throws SAXException
         {
         }
 
         public void skippedEntity(String name)
-            throws SAXException
+                throws SAXException
         {
 //            throw new RuntimeException( "Not impl: skippedEntity" );
         }
 
         public void startCDATA()
-            throws SAXException
+                throws SAXException
         {
             _insideCDATA = true;
         }
 
         public void endCDATA()
-            throws SAXException
+                throws SAXException
         {
             _insideCDATA = false;
         }
 
         public void startEntity(String name)
-            throws SAXException
+                throws SAXException
         {
             _insideEntity++;
         }
 
         public void endEntity(String name)
-            throws SAXException
+                throws SAXException
         {
             _insideEntity--;
             assert _insideEntity>=0;
@@ -3331,16 +3335,16 @@ public final class Locale
         }
         //DeclHandler
         public void attributeDecl(String eName, String aName, String type, String valueDefault, String value){
-             if (type.equals("ID")){
-                 _context.addIdAttr(eName,aName);
-             }
+            if (type.equals("ID")){
+                _context.addIdAttr(eName,aName);
+            }
         }
         public void elementDecl(String name, String model){
-         }
+        }
         public void externalEntityDecl(String name, String publicId, String systemId){
-         }
+        }
         public void internalEntityDecl(String name, String value){
-         }
+        }
 
         //DTDHandler
         public void notationDecl(String name, String publicId, String systemId){
@@ -3362,8 +3366,8 @@ public final class Locale
     }
 
     private static abstract class SaxLoader
-        extends SaxHandler
-        implements ErrorHandler
+            extends SaxHandler
+            implements ErrorHandler
     {
         SaxLoader(XMLReader xr, Locator startLocator)
         {
@@ -3374,19 +3378,26 @@ public final class Locale
             try
             {
                 _xr.setFeature(
-                    "http://xml.org/sax/features/namespace-prefixes", true);
+                        "http://xml.org/sax/features/namespace-prefixes", false);
                 _xr.setFeature("http://xml.org/sax/features/namespaces", true);
                 _xr.setFeature("http://xml.org/sax/features/validation", false);
                 _xr.setProperty(
-                    "http://xml.org/sax/properties/lexical-handler", this);
+                        "http://xml.org/sax/properties/lexical-handler", this);
                 _xr.setContentHandler(this);
-                _xr.setProperty("http://xml.org/sax/properties/declaration-handler", this);
                 _xr.setDTDHandler(this);
                 _xr.setErrorHandler(this);
             }
             catch (Throwable e)
             {
                 throw new RuntimeException(e.getMessage(), e);
+            }
+
+            try
+            {
+                _xr.setProperty("http://xml.org/sax/properties/declaration-handler", this);
+            }
+            catch (Throwable e) {
+                logger.log(XBLogger.WARN, "SAX Declaration Handler is not supported", e);
             }
         }
 
@@ -3403,7 +3414,7 @@ public final class Locale
         }
 
         public Cur load(Locale l, InputSource is, XmlOptions options)
-            throws XmlException, IOException
+                throws XmlException, IOException
         {
             is.setSystemId("file://");
 
@@ -3432,10 +3443,10 @@ public final class Locale
                 _context.abort();
 
                 XmlError err =
-                    XmlError.forLocation(e.getMessage(),
-                        (String) XmlOptions.safeGet(options,
-                            XmlOptions.DOCUMENT_SOURCE_NAME),
-                        e.getLineNumber(), e.getColumnNumber(), -1);
+                        XmlError.forLocation(e.getMessage(),
+                                (String) XmlOptions.safeGet(options,
+                                        XmlOptions.DOCUMENT_SOURCE_NAME),
+                                e.getLineNumber(), e.getColumnNumber(), -1);
 
                 throw new XmlException(err.toString(), e, err);
             }
@@ -3456,19 +3467,19 @@ public final class Locale
         }
 
         public void fatalError(SAXParseException e)
-            throws SAXException
+                throws SAXException
         {
             throw e;
         }
 
         public void error(SAXParseException e)
-            throws SAXException
+                throws SAXException
         {
             throw e;
         }
 
         public void warning(SAXParseException e)
-            throws SAXException
+                throws SAXException
         {
             throw e;
         }
@@ -3477,43 +3488,43 @@ public final class Locale
     }
 
     private Dom load(InputSource is, XmlOptions options)
-        throws XmlException, IOException
+            throws XmlException, IOException
     {
         return getSaxLoader(options).load(this, is, options).getDom();
     }
 
     public Dom load(Reader r)
-        throws XmlException, IOException
+            throws XmlException, IOException
     {
         return load(r, null);
     }
 
     public Dom load(Reader r, XmlOptions options)
-        throws XmlException, IOException
+            throws XmlException, IOException
     {
         return load(new InputSource(r), options);
     }
 
     public Dom load(InputStream in)
-        throws XmlException, IOException
+            throws XmlException, IOException
     {
         return load(in, null);
     }
 
     public Dom load(InputStream in, XmlOptions options)
-        throws XmlException, IOException
+            throws XmlException, IOException
     {
         return load(new InputSource(in), options);
     }
 
     public Dom load(String s)
-        throws XmlException
+            throws XmlException
     {
         return load(s, null);
     }
 
     public Dom load(String s, XmlOptions options)
-        throws XmlException
+            throws XmlException
     {
         Reader r = new StringReader(s);
 
@@ -3544,14 +3555,14 @@ public final class Locale
     //
 
     public Document createDocument(String uri, String qname,
-        DocumentType doctype)
+                                   DocumentType doctype)
     {
         return DomImpl._domImplementation_createDocument(this, uri, qname,
-            doctype);
+                doctype);
     }
 
     public DocumentType createDocumentType(String qname, String publicId,
-        String systemId)
+                                           String systemId)
     {
         throw new RuntimeException("Not implemented");
 //        return DomImpl._domImplementation_createDocumentType( this, qname, publicId, systemId );
@@ -3625,21 +3636,21 @@ public final class Locale
         assert _ownerDoc != null;
 
         return DomImpl.saajCallback_createSoapElement(_ownerDoc, name,
-            parentName);
+                parentName);
     }
 
     public Element importSoapElement(Document doc, Element elem, boolean deep,
-        QName parentName)
+                                     QName parentName)
     {
         assert doc instanceof Dom;
 
         return DomImpl.saajCallback_importSoapElement((Dom) doc, elem, deep,
-            parentName);
+                parentName);
     }
 
 
     private static final class DefaultQNameFactory
-        implements QNameFactory
+            implements QNameFactory
     {
         private QNameCache _cache = XmlBeans.getQNameCache();
 
@@ -3654,28 +3665,28 @@ public final class Locale
         }
 
         public QName getQName(char[] uriSrc, int uriPos, int uriCch,
-            char[] localSrc, int localPos, int localCch)
+                              char[] localSrc, int localPos, int localCch)
         {
             return
-                _cache.getName(new String(uriSrc, uriPos, uriCch),
-                    new String(localSrc, localPos, localCch),
-                    "");
+                    _cache.getName(new String(uriSrc, uriPos, uriCch),
+                            new String(localSrc, localPos, localCch),
+                            "");
         }
 
         public QName getQName(char[] uriSrc, int uriPos, int uriCch,
-            char[] localSrc, int localPos, int localCch,
-            char[] prefixSrc, int prefixPos, int prefixCch)
+                              char[] localSrc, int localPos, int localCch,
+                              char[] prefixSrc, int prefixPos, int prefixCch)
         {
             return
-                _cache.getName(new String(uriSrc, uriPos, uriCch),
-                    new String(localSrc, localPos, localCch),
-                    new String(prefixSrc, prefixPos, prefixCch));
+                    _cache.getName(new String(uriSrc, uriPos, uriCch),
+                            new String(localSrc, localPos, localCch),
+                            new String(prefixSrc, prefixPos, prefixCch));
         }
     }
 
 
     private static final class LocalDocumentQNameFactory
-        implements QNameFactory
+            implements QNameFactory
     {
         private QNameCache _cache = new QNameCache( 32 );
 
@@ -3690,22 +3701,22 @@ public final class Locale
         }
 
         public QName getQName(char[] uriSrc, int uriPos, int uriCch,
-            char[] localSrc, int localPos, int localCch)
+                              char[] localSrc, int localPos, int localCch)
         {
             return
-                _cache.getName(new String(uriSrc, uriPos, uriCch),
-                    new String(localSrc, localPos, localCch),
-                    "");
+                    _cache.getName(new String(uriSrc, uriPos, uriCch),
+                            new String(localSrc, localPos, localCch),
+                            "");
         }
 
         public QName getQName(char[] uriSrc, int uriPos, int uriCch,
-            char[] localSrc, int localPos, int localCch,
-            char[] prefixSrc, int prefixPos, int prefixCch)
+                              char[] localSrc, int localPos, int localCch,
+                              char[] prefixSrc, int prefixPos, int prefixCch)
         {
             return
-                _cache.getName(new String(uriSrc, uriPos, uriCch),
-                    new String(localSrc, localPos, localCch),
-                    new String(prefixSrc, prefixPos, prefixCch));
+                    _cache.getName(new String(uriSrc, uriPos, uriCch),
+                            new String(localSrc, localPos, localCch),
+                            new String(prefixSrc, prefixPos, prefixCch));
         }
     }
 
